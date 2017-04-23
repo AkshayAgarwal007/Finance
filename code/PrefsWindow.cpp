@@ -1,37 +1,42 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <Alert.h>
-#include <Button.h>
-#include <PopUpMenu.h>
-#include <MenuField.h>
-#include <MenuItem.h>
-#include <String.h>
-#include <StringView.h>
-#include <TextControl.h>
+/*
+ * Copyright 2009, Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
+ * Copyright 2017, Akshay Agarwal <agarwal.akshay.akshay8@gmail.com>
+ * All rights reserved. Distributed under the terms of the MIT license.
+ */
+
 #include "PrefsWindow.h"
 
-PrefsWindow::PrefsWindow(BHandler* returnHandler, Prefs* oldPrefs) :
-	BWindow(BRect(200, 200, 445, 485), "Preferences",
-	B_FLOATING_WINDOW_LOOK, B_MODAL_APP_WINDOW_FEEL, 
-	B_ASYNCHRONOUS_CONTROLS | B_NOT_RESIZABLE)
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <LayoutBuilder.h>
+#include <MenuItem.h>
+#include <PopUpMenu.h>
+#include <String.h>
+
+
+
+PrefsWindow::PrefsWindow(BHandler* returnHandler, Prefs* oldPrefs)
+	:
+	BWindow(BRect(), "Preferences", B_FLOATING_WINDOW_LOOK,
+		B_MODAL_APP_WINDOW_FEEL,
+	B_AUTO_UPDATE_SIZE_LIMITS | B_NOT_RESIZABLE)
 {
+	MoveTo(100,100);
+
 	this->returnHandler = returnHandler;
 	prefs = new Prefs;
 	prefs->Set(oldPrefs);
 
-	BRect rect(200, 200, 445, 485);
-	rect.OffsetTo(0, 0);
-	BView* backview = new BView(rect, "PrefsBackView", 0, B_WILL_DRAW);
-	backview->SetViewColor(222, 222, 222);
-	AddChild(backview);
+	BView* backview = new BView("PrefsBackView", B_WILL_DRAW);
+	rgb_color bgcolor = ui_color(B_PANEL_BACKGROUND_COLOR);
+	backview->SetViewColor(bgcolor);
 
 	string str = "";
 	str += prefs->curSym;
-	curSymTC = new BTextControl(BRect(15, 15, 200, 15), "curSymTC",
-		"Currency Symbol", str.c_str(), 0);
-	curSymTC->SetDivider(160);
+	curSymTC = new BTextControl("curSymTC", NULL, str.c_str(), NULL);
 	curSymTC->SetModificationMessage(new BMessage(PrefsCurrencyChangeMSG));
-	backview->AddChild(curSymTC);
+	fCurSymLbl = new BStringView("CurSymLbl", "Currency Symbol");
 
 	BMenuItem* mmi = 0;
 	BPopUpMenu* m = new BPopUpMenu("");
@@ -46,24 +51,19 @@ PrefsWindow::PrefsWindow(BHandler* returnHandler, Prefs* oldPrefs) :
 		mmi = mi;
 	m->AddItem(mi);
 
-	curPlaceMF = new BMenuField(BRect(15, 39, 235, 39), "curPlaceMF",
-		"Currency Placement", m);
-	curPlaceMF->SetDivider(160);
-	backview->AddChild(curPlaceMF);
+	curPlaceMF = new BMenuField("curPlaceMF", NULL, m);
 	mmi->SetMarked(true);
+	fCurPlaceLbl = new BStringView("CurPlaceLbl", "Currency Placement");
 
 	str = prefs->curSep;
-	curSepTC = new BTextControl(BRect(15, 65, 200, 65), "curSepTC",
-		"Currency Separator", str.c_str(), 0);
-	curSepTC->SetDivider(160);
+	curSepTC = new BTextControl("curSepTC", NULL, str.c_str(), NULL);
 	curSepTC->SetModificationMessage(new BMessage(PrefsCurrencyChangeMSG));
-	backview->AddChild(curSepTC);
+	fCurSepLbl = new BStringView("CurSepLbl", "Currency Separator");
+
 	str = prefs->curDec;
-	curDecTC = new BTextControl(BRect(15, 90, 200, 90), "curDecTC",
-		"Currency Decimal", str.c_str(), 0);
-	curDecTC->SetDivider(160);
+	curDecTC = new BTextControl("curDecTC", NULL, str.c_str(), NULL);
 	curDecTC->SetModificationMessage(new BMessage(PrefsCurrencyChangeMSG));
-	backview->AddChild(curDecTC);
+	fCurDecLbl = new BStringView("CurDecLbl", "Currency Decimal");
 
 	m = new BPopUpMenu("");
 	mi = new BMenuItem("2", new BMessage(PrefsCurrencyChangeMSG));
@@ -79,16 +79,11 @@ PrefsWindow::PrefsWindow(BHandler* returnHandler, Prefs* oldPrefs) :
 		mmi = mi;
 	m->AddItem(mi);
 
-	curDecPlaceMF = new BMenuField(BRect(15, 114, 230, 114), "curDecPlaceMF",
-		"Digits after Decimal in Currency", m);
-	curDecPlaceMF->SetDivider(160);
-	backview->AddChild(curDecPlaceMF);
+	curDecPlaceMF = new BMenuField("curDecPlaceMF", NULL, m);
 	mmi->SetMarked(true);
+	fCurDecPlaceLbl = new BStringView("CurDecPlaceLbl","Digits after Decimal in Currency");
 	
-	curSV = new BStringView(BRect(15, 140, 230, 160), "curSV",	
-		prefs->currencyToString(103425).c_str());
-	curSV->SetAlignment(B_ALIGN_CENTER);
-	backview->AddChild(curSV);
+	curSV = new BStringView("curSV", prefs->currencyToString(103425).c_str());
 
 	m = new BPopUpMenu("");
 	mi = new BMenuItem("mm-dd-yy", new BMessage(PrefsDateChangeMSG));
@@ -100,18 +95,14 @@ PrefsWindow::PrefsWindow(BHandler* returnHandler, Prefs* oldPrefs) :
 		mmi = mi;
 	m->AddItem(mi);
 
-	dateFormatMF = new BMenuField(BRect(15, 164, 245, 164), "dateFormatMF",
-		"Format of Date", m);
-	dateFormatMF->SetDivider(160);
-	backview->AddChild(dateFormatMF);
+	dateFormatMF = new BMenuField("dateFormatMF", NULL, m);
 	mmi->SetMarked(true);
+	fDateFormatLbl = new BStringView("dateFormatLbl", "Format of Date");
 
 	str = prefs->dateSep;
-	dateSepTC = new BTextControl(BRect(15, 189, 200, 189), "dateSepTC",
-		"Date Separator", str.c_str(), 0);
-	dateSepTC->SetDivider(160);
+	dateSepTC = new BTextControl("dateSepTC", NULL, str.c_str(), NULL);
 	dateSepTC->SetModificationMessage(new BMessage(PrefsDateChangeMSG));
-	backview->AddChild(dateSepTC);
+	fDateSepLbl = new BStringView("dateSepLbl", "Date Separator");
 
 	struct tm timestruct;
 	timestruct.tm_year = 104;
@@ -123,18 +114,56 @@ PrefsWindow::PrefsWindow(BHandler* returnHandler, Prefs* oldPrefs) :
 	timestruct.tm_isdst = -1;
 	time_t datetime = mktime(&timestruct);
 
-	dateSV = new BStringView(BRect(15, 215, 230, 235), "dateSV",
-		prefs->dateToString(datetime).c_str());
-	dateSV->SetAlignment(B_ALIGN_CENTER);
-	backview->AddChild(dateSV);
+	dateSV = new BStringView("dateSV", prefs->dateToString(datetime).c_str());
 
-	BButton* button = new BButton(BRect(15, 250, 115, 270), "okB",
-		"OK", new BMessage(PrefsOKButtonMSG));
-	backview->AddChild(button);
-	button->MakeDefault(true);
-	button = new BButton(BRect(130, 250, 230, 270), "cancelB",
-		"Cancel", new BMessage(PrefsCancelButtonMSG));
-	backview->AddChild(button);
+	fBtnOk = new BButton("okB", "OK", new BMessage(PrefsOKButtonMSG));
+	fBtnOk->MakeDefault(true);
+	fBtnCancel = new BButton("cancelB", "Cancel", new BMessage(PrefsCancelButtonMSG));
+
+	BLayoutBuilder::Group<>(backview, B_VERTICAL)
+		.SetInsets(20)
+		.AddGrid()
+			.Add(fCurSymLbl, 0, 0)
+			.Add(curSymTC, 1, 0)
+			.Add(fCurPlaceLbl, 0, 1)
+			.Add(curPlaceMF, 1, 1)
+			.Add(fCurSepLbl, 0, 2)
+			.Add(curSepTC, 1, 2)
+			.Add(fCurDecLbl, 0, 3)
+			.Add(curDecTC, 1, 3)
+			.Add(fCurDecPlaceLbl, 0, 4)
+			.Add(curDecPlaceMF, 1, 4)
+		.End()
+		.AddGroup(B_HORIZONTAL)
+			.AddGlue()
+			.Add(curSV)
+			.AddGlue()
+		.End()
+		.AddGrid()
+			.Add(fDateFormatLbl, 0, 0)
+			.Add(dateFormatMF, 1, 0)
+			.Add(fDateSepLbl, 0, 1)
+			.Add(dateSepTC, 1, 1)
+		.End()
+		.AddGroup(B_HORIZONTAL)
+			.AddGlue()
+			.Add(dateSV)
+			.AddGlue()
+		.End()
+		.AddStrut(0)
+		.AddGroup(B_HORIZONTAL)
+			.AddGlue()
+			.Add(fBtnOk)
+			.Add(fBtnCancel)
+		.End()
+	.End();
+
+	BLayoutBuilder::Group<>(this, B_VERTICAL)
+		.AddGlue()
+		.Add(backview)
+		.AddGlue()
+	.End();
+
 }
 
 void PrefsWindow::MessageReceived(BMessage* msg)
