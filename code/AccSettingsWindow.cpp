@@ -1,37 +1,58 @@
-#include <stdio.h>
-#include <Alert.h>
-#include <Button.h>
-#include <String.h>
-#include <TextControl.h>
+/*
+ * Copyright 2009, Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
+ * Copyright 2017, Akshay Agarwal <agarwal.akshay.akshay8@gmail.com>
+ * All rights reserved. Distributed under the terms of the MIT license.
+ */
+
 #include "AccSettingsWindow.h"
 
+#include <stdio.h>
+
+#include <LayoutBuilder.h>
+
+
 AccSettingsWindow::AccSettingsWindow(Acc* acc, BHandler* returnHandler,
-	Prefs* prefs) :	BWindow(BRect(200, 200, 415, 300), (acc->name + " Settings").c_str(),
-	B_FLOATING_WINDOW_LOOK, B_MODAL_APP_WINDOW_FEEL, 
-	B_ASYNCHRONOUS_CONTROLS | B_NOT_RESIZABLE)
+					Prefs* prefs)
+	:
+	BWindow(BRect(), (acc->name + " Settings").c_str(),
+		B_FLOATING_WINDOW_LOOK, B_MODAL_APP_WINDOW_FEEL,
+	B_AUTO_UPDATE_SIZE_LIMITS | B_NOT_RESIZABLE)
 {
-	this->returnHandler = returnHandler;
-	this->acc = acc;
-	this->prefs = prefs;
+	MoveTo(100,100);
+	fReturnHandler = returnHandler;
+	fAcc = acc;
+	fPrefs = prefs;
 
-	BRect rect(200, 200, 415, 400);
-	rect.OffsetTo(0, 0);
-	BView* backview = new BView(rect, "AccChooseBackView", 0, B_WILL_DRAW);
-	backview->SetViewColor(222, 222, 222);
-	AddChild(backview);
+	fBackView = new BView("AccChooseBackView", B_WILL_DRAW);
+	rgb_color bgcolor = ui_color(B_PANEL_BACKGROUND_COLOR);
+	fBackView->SetViewColor(bgcolor);
 
-	openBalTC = new BTextControl(BRect(15, 15, 200, 15), "openBalTC",
-		"Opening Balance", prefs->currencyToString(acc->openBal).c_str(), 0);
-	openBalTC->SetAlignment(B_ALIGN_LEFT, B_ALIGN_RIGHT);
-	backview->AddChild(openBalTC);
+	fOpenBalTC = new BTextControl("openBalTC", NULL,fPrefs->currencyToString(fAcc->openBal).c_str(),
+					NULL);
+	fOpenBalLbl = new BStringView("OpenBalLbl", "Opening Balance");
+	fBtnOk = new BButton("okB","OK", new BMessage(AccSetOKButtonMSG));
+	fBtnOk->MakeDefault(true);
+	fBtnCancel = new BButton("cancelB", "Cancel", new BMessage(AccSetCancelButtonMSG));
 
-	BButton* button = new BButton(BRect(15, 65, 100, 85), "okB",
-		"OK", new BMessage(AccSetOKButtonMSG));
-	backview->AddChild(button);
-	button->MakeDefault(true);
-	button = new BButton(BRect(115, 65, 200, 85), "cancelB",
-		"Cancel", new BMessage(AccSetCancelButtonMSG));
-	backview->AddChild(button);
+	BLayoutBuilder::Group<>(fBackView, B_VERTICAL)
+		.SetInsets(20)
+		.AddGroup(B_HORIZONTAL)
+			.Add(fOpenBalLbl)
+			.Add(fOpenBalTC)
+		.End()
+		.AddStrut(0)
+		.AddGroup(B_HORIZONTAL)
+			.AddGlue()
+			.Add(fBtnOk)
+			.Add(fBtnCancel)
+		.End()
+	.End();
+
+	BLayoutBuilder::Group<>(this, B_VERTICAL)
+		.AddGlue()
+		.Add(fBackView)
+		.AddGlue()
+	.End();
 }
 
 void AccSettingsWindow::MessageReceived(BMessage* msg)
@@ -40,15 +61,15 @@ void AccSettingsWindow::MessageReceived(BMessage* msg)
 	{
 		case AccSetOKButtonMSG:
 		{
-			string openbaltext = openBalTC->Text();
-			acc->openBal = prefs->stringToCurrency(openbaltext);
+			string openbaltext = fOpenBalTC->Text();
+			fAcc->openBal = fPrefs->stringToCurrency(openbaltext);
 
 			#ifdef DEBUG
-			printf("%s %li\n", openbaltext.c_str(), acc->openBal);
+			printf("%s %li\n", openbaltext.c_str(), fAcc->openBal);
 			#endif
-			BMessenger msngr(returnHandler);
+			BMessenger msngr(fReturnHandler);
 			BMessage* msg = new BMessage(AccSetReturnMSG);
-			msg->AddPointer("acc", acc);
+			msg->AddPointer("acc", fAcc);
 			msngr.SendMessage(msg);
 			Quit();
 		}
